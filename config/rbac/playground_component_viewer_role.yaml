@@ -1,0 +1,23 @@
+# permissions for end users to view components.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: k8s-controller-playground
+    app.kubernetes.io/managed-by: kustomize
+  name: playground-component-viewer-role
+rules:
+- apiGroups:
+  - playground.lburgazzoli.github.io
+  resources:
+  - components
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - playground.lburgazzoli.github.io
+  resources:
+  - components/status
+  verbs:
+  - get

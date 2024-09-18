@@ -1,0 +1,27 @@
+# permissions for end users to edit components.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: k8s-controller-playground
+    app.kubernetes.io/managed-by: kustomize
+  name: playground-component-editor-role
+rules:
+- apiGroups:
+  - playground.lburgazzoli.github.io
+  resources:
+  - components
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - playground.lburgazzoli.github.io
+  resources:
+  - components/status
+  verbs:
+  - get
