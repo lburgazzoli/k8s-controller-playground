@@ -19,17 +19,21 @@ package playground
 import (
 	"context"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	playgroundv1alpha1 "github.com/lburgazzoli/k8s-controller-playground/api/playground/v1alpha1"
+	playgroundApi "github.com/lburgazzoli/k8s-controller-playground/api/playground/v1alpha1"
+	playgroundAc "github.com/lburgazzoli/k8s-controller-playground/pkg/client/applyconfiguration/playground/v1alpha1"
+	playgroundCli "github.com/lburgazzoli/k8s-controller-playground/pkg/controller/client"
 )
 
 // ComponentReconciler reconciles a Component object
 type ComponentReconciler struct {
-	client.Client
+	Client *playgroundCli.Client
 	Scheme *runtime.Scheme
 }
 
@@ -37,26 +41,38 @@ type ComponentReconciler struct {
 // +kubebuilder:rbac:groups=playground.lburgazzoli.github.io,resources=components/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=playground.lburgazzoli.github.io,resources=components/finalizers,verbs=update
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Component object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
-func (r *ComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+func (r *ComponentReconciler) Reconcile(ctx context.Context, req *playgroundApi.Component) (ctrl.Result, error) {
+	l := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	l.Info("rec")
+
+	_, err := r.Client.PlaygroundV1alpha1().Components(req.Namespace).ApplyStatus(
+		ctx,
+		playgroundAc.Component(req.Name, req.Namespace).
+			WithStatus(playgroundAc.ComponentStatus().
+				WithObservedGeneration(req.Generation).
+				WithPhase("Ready"),
+			),
+		metav1.ApplyOptions{
+			FieldManager: "playground-controller",
+			Force:        true,
+		},
+	)
+
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// playgroundClient
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ComponentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	rec := reconcile.AsReconciler(r.Client.Client, r)
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&playgroundv1alpha1.Component{}).
-		Complete(r)
+		For(&playgroundApi.Component{}).
+		Complete(rec)
 }

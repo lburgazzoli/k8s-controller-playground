@@ -32,6 +32,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &playgroundv1alpha1.ComponentApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ComponentSpec"):
 		return &playgroundv1alpha1.ComponentSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ComponentStatus"):
+		return &playgroundv1alpha1.ComponentStatusApplyConfiguration{}
 
 	}
 	return nil

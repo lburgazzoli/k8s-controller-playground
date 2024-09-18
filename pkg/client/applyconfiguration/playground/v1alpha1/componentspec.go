@@ -20,7 +20,7 @@ package v1alpha1
 // ComponentSpecApplyConfiguration represents an declarative configuration of the ComponentSpec type for use
 // with apply.
 type ComponentSpecApplyConfiguration struct {
-	Foo *string `json:"foo,omitempty"`
+	Name *string `json:"name,omitempty"`
 }
 
 // ComponentSpecApplyConfiguration constructs an declarative configuration of the ComponentSpec type for use with
@@ -29,10 +29,10 @@ func ComponentSpec() *ComponentSpecApplyConfiguration {
 	return &ComponentSpecApplyConfiguration{}
 }
 
-// WithFoo sets the Foo field in the declarative configuration to the given value
+// WithName sets the Name field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Foo field is set to the value of the last call.
-func (b *ComponentSpecApplyConfiguration) WithFoo(value string) *ComponentSpecApplyConfiguration {
-	b.Foo = &value
+// If called multiple times, the Name field is set to the value of the last call.
+func (b *ComponentSpecApplyConfiguration) WithName(value string) *ComponentSpecApplyConfiguration {
+	b.Name = &value
 	return b
 }
