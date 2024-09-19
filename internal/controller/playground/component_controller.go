@@ -18,8 +18,8 @@ package playground
 
 import (
 	"context"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -46,7 +46,21 @@ func (r *ComponentReconciler) Reconcile(ctx context.Context, req *playgroundApi.
 
 	l.Info("rec")
 
-	_, err := r.Client.PlaygroundV1alpha1().Components(req.Namespace).ApplyStatus(
+	if _, err := r.Client.K.CoreV1().ConfigMaps(req.Namespace).Apply(
+		ctx,
+		corev1ac.ConfigMap(req.Name, req.Namespace).
+			WithLabels(map[string]string{
+				"foo": "bar",
+			}),
+		metav1.ApplyOptions{
+			FieldManager: "playground-controller",
+			Force:        true,
+		},
+	); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if _, err := r.Client.P.PlaygroundV1alpha1().Components(req.Namespace).ApplyStatus(
 		ctx,
 		playgroundAc.Component(req.Name, req.Namespace).
 			WithStatus(playgroundAc.ComponentStatus().
@@ -57,9 +71,7 @@ func (r *ComponentReconciler) Reconcile(ctx context.Context, req *playgroundApi.
 			FieldManager: "playground-controller",
 			Force:        true,
 		},
-	)
-
-	if err != nil {
+	); err != nil {
 		return ctrl.Result{}, err
 	}
 
