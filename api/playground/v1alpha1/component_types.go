@@ -36,6 +36,7 @@ type ComponentStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
+// +kubebuilder:storageversion
 
 // Component is the Schema for the components API
 type Component struct {

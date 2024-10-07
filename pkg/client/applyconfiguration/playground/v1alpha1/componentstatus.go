@@ -21,7 +21,7 @@ import (
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// ComponentStatusApplyConfiguration represents an declarative configuration of the ComponentStatus type for use
+// ComponentStatusApplyConfiguration represents a declarative configuration of the ComponentStatus type for use
 // with apply.
 type ComponentStatusApplyConfiguration struct {
 	Phase              *string                          `json:"phase,omitempty"`
@@ -29,7 +29,7 @@ type ComponentStatusApplyConfiguration struct {
 	ObservedGeneration *int64                           `json:"observedGeneration,omitempty"`
 }
 
-// ComponentStatusApplyConfiguration constructs an declarative configuration of the ComponentStatus type for use with
+// ComponentStatusApplyConfiguration constructs a declarative configuration of the ComponentStatus type for use with
 // apply.
 func ComponentStatus() *ComponentStatusApplyConfiguration {
 	return &ComponentStatusApplyConfiguration{}

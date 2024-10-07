@@ -17,13 +17,13 @@ limitations under the License.
 
 package v1alpha1
 
-// ComponentSpecApplyConfiguration represents an declarative configuration of the ComponentSpec type for use
+// ComponentSpecApplyConfiguration represents a declarative configuration of the ComponentSpec type for use
 // with apply.
 type ComponentSpecApplyConfiguration struct {
 	Name *string `json:"name,omitempty"`
 }
 
-// ComponentSpecApplyConfiguration constructs an declarative configuration of the ComponentSpec type for use with
+// ComponentSpecApplyConfiguration constructs a declarative configuration of the ComponentSpec type for use with
 // apply.
 func ComponentSpec() *ComponentSpecApplyConfiguration {
 	return &ComponentSpecApplyConfiguration{}

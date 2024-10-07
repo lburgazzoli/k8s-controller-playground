@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright 2023.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,137 +17,38 @@ limitations under the License.
 package main
 
 import (
-	"crypto/tls"
 	"flag"
 	"os"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"github.com/lburgazzoli/k8s-controller-playground/cmd/modelschema"
+	"github.com/lburgazzoli/k8s-controller-playground/cmd/run"
+	"github.com/lburgazzoli/k8s-controller-playground/pkg/logger"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"github.com/spf13/cobra"
 
-	playgroundv1alpha1 "github.com/lburgazzoli/k8s-controller-playground/api/playground/v1alpha1"
-	playgroundcontroller "github.com/lburgazzoli/k8s-controller-playground/internal/controller/playground"
-	"github.com/lburgazzoli/k8s-controller-playground/pkg/controller/client"
-	// +kubebuilder:scaffold:imports
+	"k8s.io/klog/v2"
 )
-
-var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
-)
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(playgroundv1alpha1.AddToScheme(scheme))
-	// +kubebuilder:scaffold:scheme
-}
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-	var secureMetrics bool
-	var enableHTTP2 bool
-	var tlsOpts []func(*tls.Config)
-
-	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
-		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-	flag.BoolVar(&secureMetrics, "metrics-secure", true,
-		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
-	flag.BoolVar(&enableHTTP2, "enable-http2", false,
-		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
-
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
-
-	flag.Parse()
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	ctx := ctrl.SetupSignalHandler()
-
-	disableHTTP2 := func(c *tls.Config) {
-		setupLog.Info("disabling http/2")
-		c.NextProtos = []string{"http/1.1"}
+	var rootCmd = &cobra.Command{
+		Use:   "dapr-control-plane",
+		Short: "dapr-control-plane",
+		Run: func(cmd *cobra.Command, args []string) {
+		},
 	}
 
-	if !enableHTTP2 {
-		tlsOpts = append(tlsOpts, disableHTTP2)
-	}
+	rootCmd.AddCommand(modelschema.NewCmd())
+	rootCmd.AddCommand(run.NewCmd())
 
-	webhookServer := webhook.NewServer(webhook.Options{
-		TLSOpts: tlsOpts,
-	})
+	fs := flag.NewFlagSet("", flag.PanicOnError)
 
-	metricsServerOptions := metricsserver.Options{
-		BindAddress:   metricsAddr,
-		SecureServing: secureMetrics,
-		TLSOpts:       tlsOpts,
-	}
+	klog.InitFlags(fs)
+	logger.Options.BindFlags(fs)
 
-	if secureMetrics {
-		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
-	}
+	rootCmd.PersistentFlags().AddGoFlagSet(fs)
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                        scheme,
-		Metrics:                       metricsServerOptions,
-		WebhookServer:                 webhookServer,
-		HealthProbeBindAddress:        probeAddr,
-		LeaderElection:                enableLeaderElection,
-		LeaderElectionID:              "05b57063.lburgazzoli.github.io",
-		LeaderElectionReleaseOnCancel: true,
-	})
-
-	if err != nil {
-		setupLog.Error(err, "unable to cxreate manager")
-		os.Exit(1)
-	}
-
-	c, err := client.New(ctx, mgr)
-	if err != nil {
-		setupLog.Error(err, "unable to create client")
-		os.Exit(1)
-	}
-
-	if err = (&playgroundcontroller.ComponentReconciler{
-		Client: c,
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Component")
-		os.Exit(1)
-	}
-	// +kubebuilder:scaffold:builder
-
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
-	}
-
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctx); err != nil {
-		setupLog.Error(err, "problem running manager")
+	if err := rootCmd.Execute(); err != nil {
+		klog.ErrorS(err, "problem running command")
 		os.Exit(1)
 	}
 }

@@ -18,12 +18,15 @@ limitations under the License.
 package v1alpha1
 
 import (
+	playgroundv1alpha1 "github.com/lburgazzoli/k8s-controller-playground/api/playground/v1alpha1"
+	internal "github.com/lburgazzoli/k8s-controller-playground/pkg/client/applyconfiguration/internal"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
+	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// ComponentApplyConfiguration represents an declarative configuration of the Component type for use
+// ComponentApplyConfiguration represents a declarative configuration of the Component type for use
 // with apply.
 type ComponentApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
@@ -32,7 +35,7 @@ type ComponentApplyConfiguration struct {
 	Status                           *ComponentStatusApplyConfiguration `json:"status,omitempty"`
 }
 
-// Component constructs an declarative configuration of the Component type for use with
+// Component constructs a declarative configuration of the Component type for use with
 // apply.
 func Component(name, namespace string) *ComponentApplyConfiguration {
 	b := &ComponentApplyConfiguration{}
@@ -41,6 +44,42 @@ func Component(name, namespace string) *ComponentApplyConfiguration {
 	b.WithKind("Component")
 	b.WithAPIVersion("playground.lburgazzoli.github.io/v1alpha1")
 	return b
+}
+
+// ExtractComponent extracts the applied configuration owned by fieldManager from
+// component. If no managedFields are found in component for fieldManager, a
+// ComponentApplyConfiguration is returned with only the Name, Namespace (if applicable),
+// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// field managers have taken ownership of all the fields previously owned by fieldManager, or because
+// the fieldManager never owned fields any fields.
+// component must be a unmodified Component API object that was retrieved from the Kubernetes API.
+// ExtractComponent provides a way to perform a extract/modify-in-place/apply workflow.
+// Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
+// applied if another fieldManager has updated or force applied any of the previously applied fields.
+// Experimental!
+func ExtractComponent(component *playgroundv1alpha1.Component, fieldManager string) (*ComponentApplyConfiguration, error) {
+	return extractComponent(component, fieldManager, "")
+}
+
+// ExtractComponentStatus is the same as ExtractComponent except
+// that it extracts the status subresource applied configuration.
+// Experimental!
+func ExtractComponentStatus(component *playgroundv1alpha1.Component, fieldManager string) (*ComponentApplyConfiguration, error) {
+	return extractComponent(component, fieldManager, "status")
+}
+
+func extractComponent(component *playgroundv1alpha1.Component, fieldManager string, subresource string) (*ComponentApplyConfiguration, error) {
+	b := &ComponentApplyConfiguration{}
+	err := managedfields.ExtractInto(component, internal.Parser().Type("com.github.lburgazzoli.k8s-controller-playground.api.playground.v1alpha1.Component"), fieldManager, b, subresource)
+	if err != nil {
+		return nil, err
+	}
+	b.WithName(component.Name)
+	b.WithNamespace(component.Namespace)
+
+	b.WithKind("Component")
+	b.WithAPIVersion("playground.lburgazzoli.github.io/v1alpha1")
+	return b, nil
 }
 
 // WithKind sets the Kind field in the declarative configuration to the given value
@@ -215,4 +254,10 @@ func (b *ComponentApplyConfiguration) WithSpec(value *ComponentSpecApplyConfigur
 func (b *ComponentApplyConfiguration) WithStatus(value *ComponentStatusApplyConfiguration) *ComponentApplyConfiguration {
 	b.Status = value
 	return b
+}
+
+// GetName retrieves the value of the Name field in the declarative configuration.
+func (b *ComponentApplyConfiguration) GetName() *string {
+	b.ensureObjectMetaApplyConfigurationExists()
+	return b.Name
 }

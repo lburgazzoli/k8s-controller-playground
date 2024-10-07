@@ -30,7 +30,7 @@ type PlaygroundV1alpha1Interface interface {
 	ComponentsGetter
 }
 
-// PlaygroundV1alpha1Client is used to interact with features provided by the playground group.
+// PlaygroundV1alpha1Client is used to interact with features provided by the playground.lburgazzoli.github.io group.
 type PlaygroundV1alpha1Client struct {
 	restClient rest.Interface
 }

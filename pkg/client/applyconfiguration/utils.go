@@ -19,15 +19,18 @@ package applyconfiguration
 
 import (
 	v1alpha1 "github.com/lburgazzoli/k8s-controller-playground/api/playground/v1alpha1"
+	internal "github.com/lburgazzoli/k8s-controller-playground/pkg/client/applyconfiguration/internal"
 	playgroundv1alpha1 "github.com/lburgazzoli/k8s-controller-playground/pkg/client/applyconfiguration/playground/v1alpha1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
+	testing "k8s.io/client-go/testing"
 )
 
 // ForKind returns an apply configuration type for the given GroupVersionKind, or nil if no
 // apply configuration type exists for the given GroupVersionKind.
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
-	// Group=playground, Version=v1alpha1
+	// Group=playground.lburgazzoli.github.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithKind("Component"):
 		return &playgroundv1alpha1.ComponentApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ComponentSpec"):
@@ -37,4 +40,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 
 	}
 	return nil
+}
+
+func NewTypeConverter(scheme *runtime.Scheme) *testing.TypeConverter {
+	return &testing.TypeConverter{Scheme: scheme, TypeResolver: internal.Parser()}
 }

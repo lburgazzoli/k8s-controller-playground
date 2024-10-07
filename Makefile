@@ -15,9 +15,7 @@ PROJECT_PATH := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
 LOCALBIN := $(PROJECT_PATH)/bin
 
 ## Tool Versions
-CODEGEN_VERSION ?= v0.30.3
 KUSTOMIZE_VERSION ?= v5.4.2
-CONTROLLER_TOOLS_VERSION ?= v0.16.0
 KIND_VERSION ?= v0.23.0
 KIND_IMAGE_VERSION ?= v1.30.4
 LINTER_VERSION ?= v1.61.0
@@ -33,7 +31,6 @@ YQ ?= $(LOCALBIN)/yq
 KIND ?= $(LOCALBIN)/kind
 GOVULNCHECK ?= $(LOCALBIN)/govulncheck
 KO ?= $(LOCALBIN)/ko
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -82,11 +79,11 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: manifests
-manifests: codegen-tools-install ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(PROJECT_PATH)/hack/scripts/gen_crd.sh $(PROJECT_PATH)
+manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	$(PROJECT_PATH)/hack/scripts/gen_manifests.sh $(PROJECT_PATH)
 
 .PHONY: generate
-generate: codegen-tools-install ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(PROJECT_PATH)/hack/scripts/gen_res.sh $(PROJECT_PATH)
 	$(PROJECT_PATH)/hack/scripts/gen_client.sh $(PROJECT_PATH)
 
@@ -216,8 +213,3 @@ govulncheck: $(GOVULNCHECK)
 $(GOVULNCHECK): $(LOCALBIN)
 	@test -s $(GOVULNCHECK) || \
 	GOBIN=$(LOCALBIN) go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
-
-.PHONY: codegen-tools-install
-codegen-tools-install: $(LOCALBIN)
-	@echo "Installing code gen tools"
-	$(PROJECT_PATH)/hack/scripts/install_gen_tools.sh $(PROJECT_PATH) $(CODEGEN_VERSION) $(CONTROLLER_TOOLS_VERSION)
