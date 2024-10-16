@@ -19,15 +19,13 @@ package playground
 import (
 	"context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlCli "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	playgroundApi "github.com/lburgazzoli/k8s-controller-playground/api/playground/v1alpha1"
-	playgroundAc "github.com/lburgazzoli/k8s-controller-playground/pkg/client/applyconfiguration/playground/v1alpha1"
 	playgroundCli "github.com/lburgazzoli/k8s-controller-playground/pkg/controller/client"
 )
 
@@ -46,35 +44,66 @@ func (r *ComponentReconciler) Reconcile(ctx context.Context, req *playgroundApi.
 
 	l.Info("rec")
 
-	if _, err := r.Client.K.CoreV1().ConfigMaps(req.Namespace).Apply(
+	if err := r.Client.Apply(
 		ctx,
-		corev1ac.ConfigMap(req.Name, req.Namespace).
-			WithLabels(map[string]string{
-				"foo": "bar",
-			}),
-		metav1.ApplyOptions{
-			FieldManager: "playground-controller",
-			Force:        true,
+		&playgroundApi.Agent{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: playgroundApi.SchemeGroupVersion.String(),
+				Kind:       "Agent",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      req.Name,
+				Namespace: req.Namespace,
+			},
+			Spec: playgroundApi.AgentSpec{
+				Name: req.Spec.Name,
+			},
 		},
+		ctrlCli.FieldOwner("playground-controller"),
+		ctrlCli.ForceOwnership,
 	); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if _, err := r.Client.P.PlaygroundV1alpha1().Components(req.Namespace).ApplyStatus(
+	if err := r.Client.ApplyStatus(
 		ctx,
-		playgroundAc.Component(req.Name, req.Namespace).
-			WithStatus(playgroundAc.ComponentStatus().
-				WithObservedGeneration(req.Generation).
-				WithPhase("Ready"),
-			),
-		metav1.ApplyOptions{
-			FieldManager: "playground-controller",
-			Force:        true,
+		&playgroundApi.Component{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: playgroundApi.SchemeGroupVersion.String(),
+				Kind:       "Component",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      req.Name,
+				Namespace: req.Namespace,
+			},
+			Status: playgroundApi.ComponentStatus{
+				ObservedGeneration: req.Generation,
+				Phase:              "Ready",
+				Name:               req.Spec.Name,
+			},
 		},
+		ctrlCli.FieldOwner("playground-controller"),
+		ctrlCli.ForceOwnership,
 	); err != nil {
 		return ctrl.Result{}, err
 	}
 
+	/*
+		if _, err := r.Client.P.PlaygroundV1alpha1().Components(req.Namespace).ApplyStatus(
+			ctx,
+			playgroundAc.Component(req.Name, req.Namespace).
+				WithStatus(playgroundAc.ComponentStatus().
+					WithObservedGeneration(req.Generation).
+					WithPhase("Ready"),
+				),
+			metav1.ApplyOptions{
+				FieldManager: "playground-controller",
+				Force:        true,
+			},
+		); err != nil {
+			return ctrl.Result{}, err
+		}
+	*/
 	// playgroundClient
 
 	return ctrl.Result{}, nil

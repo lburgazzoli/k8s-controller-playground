@@ -18,4 +18,12 @@ resources:
   kind: Component
   path: github.com/lburgazzoli/k8s-controller-playground/api/playground/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: lburgazzoli.github.io
+  group: playground
+  kind: Agent
+  path: github.com/lburgazzoli/k8s-controller-playground/api/playground/v1alpha1
+  version: v1alpha1
 version: "3"

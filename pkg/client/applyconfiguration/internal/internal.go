@@ -38,6 +38,49 @@ func Parser() *typed.Parser {
 var parserOnce sync.Once
 var parser *typed.Parser
 var schemaYAML = typed.YAMLObject(`types:
+- name: com.github.lburgazzoli.k8s-controller-playground.api.playground.v1alpha1.Agent
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.lburgazzoli.k8s-controller-playground.api.playground.v1alpha1.AgentSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.lburgazzoli.k8s-controller-playground.api.playground.v1alpha1.AgentStatus
+      default: {}
+- name: com.github.lburgazzoli.k8s-controller-playground.api.playground.v1alpha1.AgentSpec
+  map:
+    fields:
+    - name: foo
+      type:
+        scalar: string
+- name: com.github.lburgazzoli.k8s-controller-playground.api.playground.v1alpha1.AgentStatus
+  map:
+    fields:
+    - name: conditions
+      type:
+        list:
+          elementType:
+            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
+          elementRelationship: atomic
+    - name: observedGeneration
+      type:
+        scalar: numeric
+    - name: phase
+      type:
+        scalar: string
+      default: ""
 - name: com.github.lburgazzoli.k8s-controller-playground.api.playground.v1alpha1.Component
   map:
     fields:
@@ -74,6 +117,9 @@ var schemaYAML = typed.YAMLObject(`types:
           elementType:
             namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
           elementRelationship: atomic
+    - name: name
+      type:
+        scalar: string
     - name: observedGeneration
       type:
         scalar: numeric

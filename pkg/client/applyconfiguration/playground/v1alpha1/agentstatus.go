@@ -21,25 +21,24 @@ import (
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// ComponentStatusApplyConfiguration represents a declarative configuration of the ComponentStatus type for use
+// AgentStatusApplyConfiguration represents a declarative configuration of the AgentStatus type for use
 // with apply.
-type ComponentStatusApplyConfiguration struct {
+type AgentStatusApplyConfiguration struct {
 	Phase              *string                          `json:"phase,omitempty"`
 	Conditions         []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
 	ObservedGeneration *int64                           `json:"observedGeneration,omitempty"`
-	Name               *string                          `json:"name,omitempty"`
 }
 
-// ComponentStatusApplyConfiguration constructs a declarative configuration of the ComponentStatus type for use with
+// AgentStatusApplyConfiguration constructs a declarative configuration of the AgentStatus type for use with
 // apply.
-func ComponentStatus() *ComponentStatusApplyConfiguration {
-	return &ComponentStatusApplyConfiguration{}
+func AgentStatus() *AgentStatusApplyConfiguration {
+	return &AgentStatusApplyConfiguration{}
 }
 
 // WithPhase sets the Phase field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Phase field is set to the value of the last call.
-func (b *ComponentStatusApplyConfiguration) WithPhase(value string) *ComponentStatusApplyConfiguration {
+func (b *AgentStatusApplyConfiguration) WithPhase(value string) *AgentStatusApplyConfiguration {
 	b.Phase = &value
 	return b
 }
@@ -47,7 +46,7 @@ func (b *ComponentStatusApplyConfiguration) WithPhase(value string) *ComponentSt
 // WithConditions adds the given value to the Conditions field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Conditions field.
-func (b *ComponentStatusApplyConfiguration) WithConditions(values ...*v1.ConditionApplyConfiguration) *ComponentStatusApplyConfiguration {
+func (b *AgentStatusApplyConfiguration) WithConditions(values ...*v1.ConditionApplyConfiguration) *AgentStatusApplyConfiguration {
 	for i := range values {
 		if values[i] == nil {
 			panic("nil value passed to WithConditions")
@@ -60,15 +59,7 @@ func (b *ComponentStatusApplyConfiguration) WithConditions(values ...*v1.Conditi
 // WithObservedGeneration sets the ObservedGeneration field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the ObservedGeneration field is set to the value of the last call.
-func (b *ComponentStatusApplyConfiguration) WithObservedGeneration(value int64) *ComponentStatusApplyConfiguration {
+func (b *AgentStatusApplyConfiguration) WithObservedGeneration(value int64) *AgentStatusApplyConfiguration {
 	b.ObservedGeneration = &value
-	return b
-}
-
-// WithName sets the Name field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Name field is set to the value of the last call.
-func (b *ComponentStatusApplyConfiguration) WithName(value string) *ComponentStatusApplyConfiguration {
-	b.Name = &value
 	return b
 }

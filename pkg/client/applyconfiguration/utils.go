@@ -31,6 +31,12 @@ import (
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
 	// Group=playground.lburgazzoli.github.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithKind("Agent"):
+		return &playgroundv1alpha1.AgentApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("AgentSpec"):
+		return &playgroundv1alpha1.AgentSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("AgentStatus"):
+		return &playgroundv1alpha1.AgentStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Component"):
 		return &playgroundv1alpha1.ComponentApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ComponentSpec"):

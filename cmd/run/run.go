@@ -2,8 +2,10 @@ package run
 
 import (
 	"crypto/tls"
+	"github.com/lburgazzoli/k8s-controller-playground/pkg/logger"
 	"github.com/spf13/cobra"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -38,6 +40,7 @@ const (
 )
 
 func NewCmd() *cobra.Command {
+
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
@@ -50,6 +53,8 @@ func NewCmd() *cobra.Command {
 		Use:   cmdName,
 		Short: cmdName,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctrl.SetLogger(zap.New(zap.UseFlagOptions(&logger.Options)))
+
 			disableHTTP2 := func(c *tls.Config) {
 				setupLog.Info("disabling http/2")
 				c.NextProtos = []string{"http/1.1"}
@@ -125,7 +130,7 @@ func NewCmd() *cobra.Command {
 	cmd.Flags().StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	cmd.Flags().StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	cmd.Flags().BoolVar(&enableLeaderElection, "leader-elect", false,
+	cmd.Flags().BoolVar(&enableLeaderElection, "leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	cmd.Flags().BoolVar(&secureMetrics, "metrics-secure", true,

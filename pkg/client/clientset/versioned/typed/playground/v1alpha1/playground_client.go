@@ -27,12 +27,17 @@ import (
 
 type PlaygroundV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	AgentsGetter
 	ComponentsGetter
 }
 
 // PlaygroundV1alpha1Client is used to interact with features provided by the playground.lburgazzoli.github.io group.
 type PlaygroundV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *PlaygroundV1alpha1Client) Agents(namespace string) AgentInterface {
+	return newAgents(c, namespace)
 }
 
 func (c *PlaygroundV1alpha1Client) Components(namespace string) ComponentInterface {

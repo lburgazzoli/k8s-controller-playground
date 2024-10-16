@@ -20,18 +20,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ComponentSpec defines the desired state of Component
-type ComponentSpec struct {
-	Name string `json:"name,omitempty"`
+type AgentSpec struct {
+	Name string `json:"foo,omitempty"`
 }
 
-// ComponentStatus defines the observed state of Component
-type ComponentStatus struct {
+type AgentStatus struct {
 	Phase              string             `json:"phase"`
 	Conditions         []metav1.Condition `json:"conditions,omitempty"`
 	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
-
-	Name string `json:"name,omitempty"`
 }
 
 // +genclient
@@ -39,24 +35,24 @@ type ComponentStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 
-// Component is the Schema for the components API
-type Component struct {
+// Agent is the Schema for the agents API
+type Agent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ComponentSpec   `json:"spec,omitempty"`
-	Status ComponentStatus `json:"status,omitempty"`
+	Spec   AgentSpec   `json:"spec,omitempty"`
+	Status AgentStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// ComponentList contains a list of Component
-type ComponentList struct {
+// AgentList contains a list of Agent
+type AgentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Component `json:"items"`
+	Items           []Agent `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Component{}, &ComponentList{})
+	SchemeBuilder.Register(&Agent{}, &AgentList{})
 }

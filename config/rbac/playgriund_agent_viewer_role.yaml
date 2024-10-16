@@ -1,0 +1,23 @@
+# permissions for end users to view agents.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: k8s-controller-playground
+    app.kubernetes.io/managed-by: kustomize
+  name: playgriund-agent-viewer-role
+rules:
+- apiGroups:
+  - playgriund.lburgazzoli.github.io
+  resources:
+  - agents
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - playgriund.lburgazzoli.github.io
+  resources:
+  - agents/status
+  verbs:
+  - get

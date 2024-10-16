@@ -31,8 +31,8 @@ import (
 
 func main() {
 	var rootCmd = &cobra.Command{
-		Use:   "dapr-control-plane",
-		Short: "dapr-control-plane",
+		Use:   "playground",
+		Short: "playground",
 		Run: func(cmd *cobra.Command, args []string) {
 		},
 	}
