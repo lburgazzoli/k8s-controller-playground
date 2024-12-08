@@ -22,14 +22,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlCli "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sync"
 
 	playgroundApi "github.com/lburgazzoli/k8s-controller-playground/api/playground/v1alpha1"
@@ -55,21 +53,54 @@ func (r *ComponentReconciler) Reconcile(ctx context.Context, req *playgroundApi.
 
 	l.Info("rec")
 
+	a := playgroundApi.Agent{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: playgroundApi.SchemeGroupVersion.String(),
+			Kind:       "Agent",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.Name,
+			Namespace: req.Namespace,
+		},
+	}
+
+	err := r.Client.Get(ctx, ctrlCli.ObjectKeyFromObject(&a), &a)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	err = controllerutil.RemoveOwnerReference(req, &a, r.Scheme)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	err = r.Client.Update(ctx, &a)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	a = playgroundApi.Agent{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: playgroundApi.SchemeGroupVersion.String(),
+			Kind:       "Agent",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.Name,
+			Namespace: req.Namespace,
+		},
+		Spec: playgroundApi.AgentSpec{
+			Name: req.Spec.Name,
+		},
+	}
+
+	// err := controllerutil.SetOwnerReference(req, &a, r.Scheme)
+	// if err != nil {
+	//	return ctrl.Result{}, err
+	// }
+
 	if err := r.Client.Apply(
 		ctx,
-		&playgroundApi.Agent{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: playgroundApi.SchemeGroupVersion.String(),
-				Kind:       "Agent",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      req.Name,
-				Namespace: req.Namespace,
-			},
-			Spec: playgroundApi.AgentSpec{
-				Name: req.Spec.Name,
-			},
-		},
+		&a,
 		ctrlCli.FieldOwner("playground-controller"),
 		ctrlCli.ForceOwnership,
 	); err != nil {
@@ -99,33 +130,6 @@ func (r *ComponentReconciler) Reconcile(ctx context.Context, req *playgroundApi.
 		return ctrl.Result{}, err
 	}
 
-	r.o.Do(func() {
-
-		u := unstructured.Unstructured{}
-		u.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   "maistra.io",
-			Version: "v1",
-			Kind:    "ServiceMeshMember",
-		})
-
-		err := r.c.Watch(source.Kind(
-			r.m.GetCache(),
-			&u,
-			handler.TypedEnqueueRequestsFromMapFunc(func(context.Context, *unstructured.Unstructured) []reconcile.Request {
-				return []reconcile.Request{{
-					NamespacedName: types.NamespacedName{
-						Name:      req.Name,
-						Namespace: req.Namespace,
-					},
-				}}
-			})),
-		)
-
-		if err != nil {
-			panic(err)
-		}
-	})
-
 	return ctrl.Result{}, nil
 }
 
@@ -144,6 +148,7 @@ func (r *ComponentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&playgroundApi.Component{}).
+		Owns(&playgroundApi.Agent{}).
 		Build(rec)
 
 	r.c = c
