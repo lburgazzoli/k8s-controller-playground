@@ -108,7 +108,8 @@ run: ## Run a controller from your host.
 		--leader-election=false \
 		--zap-devel \
 		--health-probe-bind-address ":0" \
-		--metrics-bind-address ":0"
+		--metrics-bind-address ":8080" \
+		--metrics-secure=false
 
 .PHONY: run/local
 run/local: install ## Install and Run a controller from your host.

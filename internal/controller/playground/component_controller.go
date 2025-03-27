@@ -18,20 +18,25 @@ package playground
 
 import (
 	"context"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"fmt"
+	"github.com/lburgazzoli/k8s-controller-playground/pkg/resources"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	ctrlCli "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sync"
 
 	playgroundApi "github.com/lburgazzoli/k8s-controller-playground/api/playground/v1alpha1"
 	playgroundCli "github.com/lburgazzoli/k8s-controller-playground/pkg/controller/client"
+	k8serr "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // ComponentReconciler reconciles a Component object
@@ -53,80 +58,31 @@ func (r *ComponentReconciler) Reconcile(ctx context.Context, req *playgroundApi.
 
 	l.Info("rec")
 
-	a := playgroundApi.Agent{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: playgroundApi.SchemeGroupVersion.String(),
-			Kind:       "Agent",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.Name,
-			Namespace: req.Namespace,
-		},
+	cm1 := corev1.ConfigMap{}
+	cm1.Name = req.Name
+	cm1.Namespace = req.Namespace
+	cm1.Labels = map[string]string{
+		"foo": "bar",
 	}
 
-	err := r.Client.Get(ctx, ctrlCli.ObjectKeyFromObject(&a), &a)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	err = controllerutil.RemoveOwnerReference(req, &a, r.Scheme)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	err = r.Client.Update(ctx, &a)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	a = playgroundApi.Agent{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: playgroundApi.SchemeGroupVersion.String(),
-			Kind:       "Agent",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.Name,
-			Namespace: req.Namespace,
-		},
-		Spec: playgroundApi.AgentSpec{
-			Name: req.Spec.Name,
-		},
-	}
-
-	// err := controllerutil.SetOwnerReference(req, &a, r.Scheme)
-	// if err != nil {
-	//	return ctrl.Result{}, err
-	// }
-
-	if err := r.Client.Apply(
-		ctx,
-		&a,
-		ctrlCli.FieldOwner("playground-controller"),
-		ctrlCli.ForceOwnership,
-	); err != nil {
+	if err := ctrl.SetControllerReference(req, &cm1, r.Scheme); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.Client.ApplyStatus(
-		ctx,
-		&playgroundApi.Component{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: playgroundApi.SchemeGroupVersion.String(),
-				Kind:       "Component",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      req.Name,
-				Namespace: req.Namespace,
-			},
-			Status: playgroundApi.ComponentStatus{
-				ObservedGeneration: req.Generation,
-				Phase:              "Ready",
-				Name:               req.Spec.Name,
-			},
-		},
-		ctrlCli.FieldOwner("playground-controller"),
-		ctrlCli.ForceOwnership,
-	); err != nil {
+	cm1.Data = map[string]string{
+		"cm1": "foo",
+	}
+
+	if err := Apply(ctx, r.Client, &cm1, ctrlCli.ForceOwnership, ctrlCli.FieldOwner("cm1")); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	cm1.OwnerReferences = nil
+	cm1.Data = map[string]string{
+		"cm2": "bar",
+	}
+
+	if err := Apply(ctx, r.Client, &cm1, ctrlCli.ForceOwnership, ctrlCli.FieldOwner("cm2")); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -149,12 +105,52 @@ func (r *ComponentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&playgroundApi.Component{}).
 		Owns(&playgroundApi.Agent{}).
+		Owns(
+			&corev1.ConfigMap{},
+			builder.WithPredicates(predicate.Funcs{
+				UpdateFunc: func(e event.TypedUpdateEvent[ctrlCli.Object]) bool {
+					ctrl.Log.WithName("cm").Info(">>>>>>>>>>>", "name", e.ObjectNew.GetName(), "rv", e.ObjectNew.GetResourceVersion())
+					return true
+				},
+			}),
+		).
 		Build(rec)
 
 	r.c = c
 
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func Apply(ctx context.Context, cli ctrlCli.Client, in ctrlCli.Object, opts ...ctrlCli.PatchOption) error {
+	u, err := resources.ToUnstructured(cli.Scheme(), in)
+	if err != nil {
+		return fmt.Errorf("failed to convert resource to unstructured: %w", err)
+	}
+
+	// safe copy
+	u = u.DeepCopy()
+
+	// remove not required fields
+	unstructured.RemoveNestedField(u.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(u.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(u.Object, "status")
+
+	err = cli.Patch(ctx, u, ctrlCli.Apply, opts...)
+	switch {
+	case k8serr.IsNotFound(err):
+		return nil
+	case err != nil:
+		return fmt.Errorf("unable to patch object %s: %w", u, err)
+	}
+
+	// Write back the modified object so callers can access the patched object.
+	err = cli.Scheme().Convert(u, in, ctx)
+	if err != nil {
+		return fmt.Errorf("failed to write modified object: %w", err)
 	}
 
 	return nil

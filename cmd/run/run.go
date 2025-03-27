@@ -2,10 +2,20 @@ package run
 
 import (
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"github.com/lburgazzoli/k8s-controller-playground/pkg/logger"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	corecache "k8s.io/client-go/tools/cache"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -39,6 +49,23 @@ const (
 	cmdName = "run"
 )
 
+func GetGroupVersionKindForObject(s *runtime.Scheme, obj runtime.Object) (schema.GroupVersionKind, error) {
+	if obj == nil {
+		return schema.GroupVersionKind{}, errors.New("nil object")
+	}
+
+	if obj.GetObjectKind().GroupVersionKind().Version != "" && obj.GetObjectKind().GroupVersionKind().Kind != "" {
+		return obj.GetObjectKind().GroupVersionKind(), nil
+	}
+
+	gvk, err := apiutil.GVKForObject(obj, s)
+	if err != nil {
+		return schema.GroupVersionKind{}, fmt.Errorf("failed to get GVK: %w", err)
+	}
+
+	return gvk, nil
+}
+
 func NewCmd() *cobra.Command {
 
 	var metricsAddr string
@@ -54,6 +81,13 @@ func NewCmd() *cobra.Command {
 		Short: cmdName,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctrl.SetLogger(zap.New(zap.UseFlagOptions(&logger.Options)))
+
+			kind, err := GetGroupVersionKindForObject(scheme, &v1.PartialObjectMetadata{TypeMeta: ctrl.TypeMeta{
+				APIVersion: "apps/v1",
+				Kind:       "Deployments",
+			}})
+
+			fmt.Println(kind)
 
 			disableHTTP2 := func(c *tls.Config) {
 				setupLog.Info("disabling http/2")
@@ -78,6 +112,19 @@ func NewCmd() *cobra.Command {
 				metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 			}
 
+			StoredResourcesTotal := prometheus.NewGaugeVec(
+				prometheus.GaugeOpts{
+					Name: "stored_resources_total",
+					Help: "TODO",
+				},
+				[]string{
+					"apiVersion",
+					"kind",
+				},
+			)
+
+			metrics.Registry.MustRegister(StoredResourcesTotal)
+
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 				Scheme:                        scheme,
 				Metrics:                       metricsServerOptions,
@@ -86,6 +133,31 @@ func NewCmd() *cobra.Command {
 				LeaderElection:                enableLeaderElection,
 				LeaderElectionID:              "05b57063.lburgazzoli.github.io",
 				LeaderElectionReleaseOnCancel: true,
+				Cache: cache.Options{
+					NewInformer: func(
+						watcher corecache.ListerWatcher, obj runtime.Object, duration time.Duration, indexers corecache.Indexers) corecache.SharedIndexInformer {
+						gvk, err := apiutil.GVKForObject(obj, scheme)
+						if err != nil {
+							panic(err)
+						}
+
+						i := corecache.NewSharedIndexInformer(watcher, obj, duration, indexers)
+
+						_, err = i.AddEventHandler(corecache.ResourceEventHandlerFuncs{
+							AddFunc: func(_ interface{}) {
+								StoredResourcesTotal.WithLabelValues(gvk.GroupVersion().String(), gvk.Kind).Inc()
+							},
+							DeleteFunc: func(_ interface{}) {
+								StoredResourcesTotal.WithLabelValues(gvk.GroupVersion().String(), gvk.Kind).Dec()
+							},
+						})
+						if err != nil {
+							panic(err)
+						}
+
+						return i
+					},
+				},
 			})
 
 			if err != nil {
